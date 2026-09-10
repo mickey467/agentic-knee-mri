@@ -4,7 +4,7 @@ import { api } from "../api";
 
 const SUGGESTIONS = [
   "Explain the highest prediction",
-  "Show me the sagittal series",
+  "Show me the fifth slice in the sagittal series",
   "What does the medical evidence say?",
 ];
 
