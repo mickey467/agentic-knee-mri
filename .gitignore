@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+.env
+
+# Data / Medical Images / Models
+backend/sample_data/**
+backend/model/*.pt
+backend/rag_data/*.index
+
+# Node / Frontend
+node_modules/
+dist/
+.DS_Store

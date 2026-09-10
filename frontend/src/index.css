@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+@theme {
+  --color-base: #000000;
+  --color-panel: #0a0a0b;
+  --color-card: #111113;
+  --color-line: #26262a;
+  --color-ink: #f5f5f5;
+  --color-dim: #a1a1aa;
+  --color-faint: #63636b;
+  --color-accent: #22d3ee;
+  --color-good: #22c55e;
+  --color-warn: #f59e0b;
+  --color-bad: #ef4444;
+  --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+html, body {
+  background: #000;
+  color: #f5f5f5;
+  font-family: var(--font-sans);
+}
+
+/* Markdown report + chat */
+.md h2 { font-size: 1rem; font-weight: 600; margin: 1rem 0 0.5rem; color: #fff; }
+.md h2:first-child { margin-top: 0; }
+.md p, .md li { font-size: 0.875rem; line-height: 1.5; color: #d4d4d8; }
+.md ul { list-style: disc; padding-left: 1.25rem; margin: 0.25rem 0; }
+.md strong { color: #fff; }
+.md table { font-size: 0.8rem; border-collapse: collapse; margin: 0.5rem 0; }
+.md th, .md td { border: 1px solid #26262a; padding: 0.3rem 0.5rem; text-align: left; }
+
+input[type="range"] { accent-color: #22d3ee; }
+
+@media print {
+  body { background: #fff; }
+  .no-print { display: none !important; }
+  .print-only-report { color: #000; }
+  .print-only-report .md p, .print-only-report .md li { color: #111; }
+  .print-only-report .md strong, .print-only-report .md h2 { color: #000; }
+}
