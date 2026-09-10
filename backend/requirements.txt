@@ -11,7 +11,5 @@ faiss-cpu>=1.7.4
 sentence-transformers>=2.0.0
 pypdf>=4.0.0
 fonttools>=4.0.0
-# PyTorch and MONAI
+# PyTorch (CPU; torchvision/monai unused — verified zero imports)
 torch>=2.2.0
-torchvision>=0.17.0
-monai>=1.3.0
