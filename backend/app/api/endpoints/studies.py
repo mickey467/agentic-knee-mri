@@ -102,7 +102,7 @@ def get_slice_image(study_id: str, series_id: str, slice_index: int):
 
 
 @router.post("/{study_id}/analyze", response_model=InferenceResult)
-def analyze_study(study_id: str, payload: AnalyzePayload = None):
+def analyze_study(study_id: str, payload: Optional[AnalyzePayload] = None):
     """
     Run DINOv2-LoRA + Model G ensemble inference on a study.
 

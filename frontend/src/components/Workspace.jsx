@@ -435,10 +435,10 @@ function Chat({ studyId, session, reportReady, onViz }) {
     setInput("");
     setBusy(true);
     setMsgs((m) => [...m, { role: "user", text: q }]);
-    const t0 = performance.now();
+    const t0 = Date.now();
     try {
       const d = await api.chat(studyId, q, session);
-      const ms = Math.round(performance.now() - t0);
+      const ms = Date.now() - t0;
       setMsgs((m) => [...m, { role: "agent", text: d.reply, trace: d.tool_trace, model: d.model, ms }]);
       onViz(d.viz_commands);
     } catch (e) {

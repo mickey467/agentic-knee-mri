@@ -4,7 +4,7 @@ from typing import Optional, Tuple
 import numpy as np
 from PIL import Image
 import pydicom
-from pydicom.pixel_data_handlers.util import apply_voi_lut
+from pydicom.pixels import apply_voi_lut
 
 def get_slice_pil_image(
     file_path: str, 
