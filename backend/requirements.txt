@@ -13,5 +13,8 @@ faiss-cpu>=1.7.4
 sentence-transformers>=2.0.0
 pypdf>=4.0.0
 fonttools>=4.0.0
-# PyTorch (CPU; torchvision/monai unused — verified zero imports)
+# PyTorch (CPU-only wheels via https://download.pytorch.org/whl/cpu).
+# torchvision has zero direct imports but is required at runtime by
+# transformers' AutoImageProcessor. monai stays dropped (unused).
 torch>=2.2.0
+torchvision>=0.17.0

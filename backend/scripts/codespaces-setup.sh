@@ -9,7 +9,7 @@ cd "$ROOT"
 
 echo "--- Python deps (CPU-only torch first) ---"
 python -m pip install --upgrade pip
-python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 python -m pip install -r backend/requirements.txt
 
 echo "--- Demo artifacts from Hugging Face Hub ---"
