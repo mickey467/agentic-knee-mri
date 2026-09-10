@@ -59,7 +59,8 @@ Lateral OA, PF OA, Effusion, Synovitis, Baker's cyst, Contusion, Fracture.
 
 | Rank | Model | Macro ROC-AUC | Description |
 |------|-------|---------------|-------------|
-| 1 | model_G + base dino v2 | **0.7651** | Label-specific anatomical-view fusion |
+| 1 | model G + DINOv2 LoRA abnormality predictor | **0.8001** | same as 2 but with lora |
+| 1 | model_G + base dino v2 | 0.7651 | Label-specific anatomical-view fusion |
 | 2 | baseline_B_mean_mean | 0.7208 | Mean slice pooling + mean series pooling |
 | 3 | model_C_slice_attn | 0.7130 | Slice attention + mean series pooling |
 | 4 | model_D_series_attn | 0.6045 | Slice attention + series attention |
