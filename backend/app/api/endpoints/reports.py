@@ -112,15 +112,14 @@ async def _with_heartbeat(agen, interval: float = 15.0):
     import asyncio
 
     queue: asyncio.Queue = asyncio.Queue()
-    finished = False
 
     async def _pump():
-        nonlocal finished
         try:
             async for item in agen:
                 await queue.put(item)
         finally:
-            finished = True
+            # Always terminate the stream, even if the source raised.
+            # (Never break on timeout instead: queued items must be drained first.)
             await queue.put(None)
 
     pump = asyncio.create_task(_pump())
@@ -129,8 +128,6 @@ async def _with_heartbeat(agen, interval: float = 15.0):
             try:
                 item = await asyncio.wait_for(queue.get(), timeout=interval)
             except asyncio.TimeoutError:
-                if finished:
-                    break
                 yield ": ping\n\n"
                 continue
             if item is None:
