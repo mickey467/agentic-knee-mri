@@ -8,12 +8,15 @@ carries over seamlessly.
 from app.services.agent import provider
 
 
-async def ainvoke_with_failover(build_fn, payload, config):
+async def ainvoke_with_failover(build_fn, payload, config, prefix_messages=None):
     """Invoke a graph, failing over to the fallback model on capacity errors.
 
-    Returns (result, model_used, graph). LLMNotConfigured and non-capacity
-    errors propagate untouched.
+    prefix_messages are prepended to a dict payload's messages (e.g. one-time
+    context on a fresh thread). Returns (result, model_used, graph).
+    LLMNotConfigured and non-capacity errors propagate untouched.
     """
+    if prefix_messages and isinstance(payload, dict):
+        payload = {**payload, "messages": [*prefix_messages, *payload.get("messages", [])]}
     graph = build_fn()
     try:
         return await graph.ainvoke(payload, config), "primary", graph

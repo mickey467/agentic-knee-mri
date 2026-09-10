@@ -28,7 +28,8 @@ async def chat(study_id: str, body: ChatRequest):
     if not body.message.strip():
         raise HTTPException(status_code=422, detail="Message must not be empty.")
 
-    if not load_report(study_id, body.session_id):
+    entry = load_report(study_id, body.session_id)
+    if not entry:
         return {
             "status": "needs_report",
             "study_id": study_id,
@@ -38,9 +39,23 @@ async def chat(study_id: str, body: ChatRequest):
     from app.services.agent.failover import ainvoke_with_failover
 
     _, config = _config_for(study_id, body.session_id)
+    # Fresh thread (report lives on the report checkpointer, not here):
+    # inject the completed report once so the agent knows the study and findings.
+    prefix = []
+    try:
+        probe = build_chat_graph()
+        snapshot0 = probe.get_state(config)
+        if not (snapshot0.values or {}).get("messages"):
+            prefix = [HumanMessage(content=(
+                f"Completed KNEE MRI REPORT for study '{study_id}' — reference for "
+                f"all following answers, do not regenerate it:\n\n{entry['report']}"
+            ))]
+    except LLMNotConfigured as e:
+        raise HTTPException(status_code=503, detail=str(e))
     payload = {"messages": [HumanMessage(content=f"(Study context: {study_id})\n{body.message}")]}
     try:
-        _, model_used, graph = await ainvoke_with_failover(build_chat_graph, payload, config)
+        _, model_used, graph = await ainvoke_with_failover(
+            build_chat_graph, payload, config, prefix_messages=prefix or None)
     except LLMNotConfigured as e:
         raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:

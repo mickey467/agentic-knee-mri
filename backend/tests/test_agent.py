@@ -360,6 +360,23 @@ def test_chat_answers_with_viz_commands(client, monkeypatch):
     assert all(c["tool"] == "find_series" for c in body["viz_commands"])
 
 
+def test_chat_injects_report_on_fresh_thread(client, monkeypatch):
+    from app.services.agent.graph import build_chat_graph
+    from app.services.agent.store import thread_id
+
+    save_report("acl", "t7", REPORT_MD)
+    _stub_provider(monkeypatch, [AIMessage(content="On it.")])
+    resp = client.post(
+        "/api/studies/acl/chat", json={"message": "summarize", "session_id": "t7"}
+    )
+    assert resp.json()["status"] == "ok"
+    probe = build_chat_graph(model=_fake([AIMessage(content="unused")]))
+    snap = probe.get_state({"configurable": {"thread_id": thread_id("acl", "t7")}})
+    texts = [getattr(m, "content", "") or "" for m in snap.values.get("messages", [])]
+    assert any("Completed KNEE MRI REPORT" in t for t in texts)
+    assert any("## Evidence" in t for t in texts)
+
+
 def test_chat_404_and_422(client):
     assert client.post("/api/studies/nope/chat", json={"message": "hi"}).status_code == 404
     save_report("acl", "t5", REPORT_MD)
