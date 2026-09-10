@@ -347,6 +347,26 @@ def teardown_module():
     REPORT_STORE.clear()
 
 
+def test_sse_heartbeat_during_quiet_stretch():
+    import asyncio
+
+    from app.api.endpoints.reports import _with_heartbeat
+
+    async def slow_gen():
+        await asyncio.sleep(0.05)
+        yield "event: tool\ndata: {}\n\n"
+
+    async def collect():
+        out = []
+        async for item in _with_heartbeat(slow_gen(), interval=0.01):
+            out.append(item)
+        return out
+
+    items = asyncio.run(collect())
+    assert any(i.startswith(": ping") for i in items)
+    assert items[-1].startswith("event: tool")
+
+
 def _sse_events(text):
     """Parse an SSE stream into [(event, data)] pairs."""
     import json

@@ -188,3 +188,70 @@ def test_analyze_endpoint_integration(client):
 
     # At least one series was processed
     assert data["series_processed"] >= 1
+
+
+def _wait_job(client, study_id, job_id, tries=60):
+    import time
+
+    for _ in range(tries):
+        resp = client.get(f"/api/studies/{study_id}/jobs/{job_id}")
+        assert resp.status_code == 200, resp.text
+        if resp.json()["status"] == "done":
+            return resp.json()["result"]
+        time.sleep(0.5)
+    raise AssertionError("background job did not finish in time")
+
+
+def test_analyze_background_flow(client, monkeypatch):
+    """Background submit → poll → result, with stubbed inference (fast)."""
+    import app.services.model.inference as inference_mod
+    from app.services.model import jobs
+
+    jobs.reset()
+    monkeypatch.setattr(
+        inference_mod, "run_inference",
+        lambda study_id, series_uids=None: {
+            "study_id": study_id, "probabilities": {"ACL": 0.9},
+            "predicted_labels": ["ACL"], "raw_probs": [0.9], "labels": ["ACL"],
+            "series_processed": 1, "n_folds": 5,
+        },
+    )
+    try:
+        resp = client.post("/api/studies/acl/analyze", json={"background": True})
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["status"] == "running" and body["job_id"]
+        result = _wait_job(client, "acl", body["job_id"])
+        assert result["predicted_labels"] == ["ACL"]
+    finally:
+        jobs.reset()
+
+
+def test_analyze_background_failure_surfaces(client, monkeypatch):
+    import app.services.model.inference as inference_mod
+    from app.services.model import jobs
+
+    jobs.reset()
+    monkeypatch.setattr(
+        inference_mod, "run_inference",
+        lambda study_id, series_uids=None: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
+    try:
+        resp = client.post("/api/studies/acl/analyze", json={"background": True})
+        job_id = resp.json()["job_id"]
+        import time
+
+        for _ in range(60):
+            poll = client.get(f"/api/studies/acl/jobs/{job_id}")
+            if poll.status_code == 500:
+                assert "boom" in poll.json()["detail"]
+                return
+            time.sleep(0.5)
+        raise AssertionError("failed job never surfaced the error")
+    finally:
+        jobs.reset()
+
+
+def test_job_unknown_id_404(client):
+    assert client.get("/api/studies/acl/jobs/nope").status_code == 404
+    assert client.post("/api/studies/nope/analyze", json={"background": True}).status_code == 404

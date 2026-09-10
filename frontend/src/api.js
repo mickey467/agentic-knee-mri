@@ -16,7 +16,23 @@ export const api = {
   metadata: (id) => req(`/api/studies/${id}/metadata`),
   series: (id, seriesId) => req(`/api/studies/${id}/series/${seriesId}`),
   sliceUrl: (id, seriesId, i) => `/api/studies/${id}/series/${seriesId}/slices/${i}/image`,
-  analyze: (id) => req(`/api/studies/${id}/analyze`, { method: "POST", body: "{}" }),
+  // Background inference + poll: each HTTP round-trip is short, so slow
+  // hosted links (tunnels/proxies) can't time out mid-inference.
+  analyze: async (id, onStatus) => {
+    const job = await req(`/api/studies/${id}/analyze`, {
+      method: "POST",
+      body: JSON.stringify({ background: true }),
+    });
+    const deadline = Date.now() + 15 * 60 * 1000;
+    for (;;) {
+      await new Promise((r) => setTimeout(r, 3000));
+      const s = await req(`/api/studies/${id}/jobs/${job.job_id}`);
+      onStatus?.(s.status);
+      if (s.status === "done") return s.result;
+      if (Date.now() > deadline) throw new Error("Inference timed out after 15 minutes");
+      // failed jobs raise via req() on the failed payload automatically
+    }
+  },
   report: (id, sessionId, resume) =>
     req(`/api/studies/${id}/report`, {
       method: "POST",

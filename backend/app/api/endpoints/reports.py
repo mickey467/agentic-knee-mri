@@ -103,9 +103,42 @@ async def stream_report(study_id: str, body: ReportRequest):
     if not study_manager.get_study(study_id):
         raise HTTPException(status_code=404, detail=f"Study '{study_id}' not found")
     return StreamingResponse(
-        _report_events(study_id, body.session_id, body.resume_payload),
+        _with_heartbeat(_report_events(study_id, body.session_id, body.resume_payload)),
         media_type="text/event-stream",
     )
+
+
+async def _with_heartbeat(agen, interval: float = 15.0):
+    """Yield SSE comment keep-alives during quiet stretches (tunnel/proxy idle timeouts)."""
+    import asyncio
+
+    queue: asyncio.Queue = asyncio.Queue()
+    finished = False
+
+    async def _pump():
+        nonlocal finished
+        try:
+            async for item in agen:
+                await queue.put(item)
+        finally:
+            finished = True
+            await queue.put(None)
+
+    pump = asyncio.create_task(_pump())
+    try:
+        while True:
+            try:
+                item = await asyncio.wait_for(queue.get(), timeout=interval)
+            except asyncio.TimeoutError:
+                if finished:
+                    break
+                yield ": ping\n\n"
+                continue
+            if item is None:
+                break
+            yield item
+    finally:
+        pump.cancel()
 
 
 def _sse(event: str, data: dict) -> str:

@@ -13,8 +13,10 @@ router = APIRouter(prefix="/studies", tags=["studies"])
 
 class AnalyzePayload(BaseModel):
     """Request body for the analyze endpoint. series_uids is optional;
-    if omitted, all series in the study will be used."""
+    if omitted, all series in the study will be used.
+    Set background=true to queue a job and poll it (for slow hosted links)."""
     series_uids: Optional[List[str]] = None
+    background: bool = False
 
 
 class InferenceResult(BaseModel):
@@ -101,19 +103,28 @@ def get_slice_image(study_id: str, series_id: str, slice_index: int):
         raise HTTPException(status_code=500, detail=f"Failed to render slice: {str(e)}")
 
 
-@router.post("/{study_id}/analyze", response_model=InferenceResult)
+@router.post("/{study_id}/analyze")
 def analyze_study(study_id: str, payload: Optional[AnalyzePayload] = None):
     """
     Run DINOv2-LoRA + Model G ensemble inference on a study.
 
     Optionally restrict to specific series UIDs via the request body.
-    Returns 12-class sigmoid probabilities (one per knee abnormality label).
+    Sync: returns InferenceResult (12-class probabilities).
+    With background=true: returns 202-style {job_id, status}; poll
+    GET /studies/{id}/jobs/{job_id} for the result.
     """
     study = study_manager.get_study(study_id)
     if not study:
         raise HTTPException(status_code=404, detail=f"Study '{study_id}' not found")
 
     series_uids = (payload.series_uids if payload else None)
+    background = (payload.background if payload else False)
+
+    if background:
+        from app.services.model.jobs import submit
+
+        job_id = submit(study_id, series_uids=series_uids)
+        return {"job_id": job_id, "status": "running"}
 
     try:
         from app.services.model.inference import run_inference
@@ -123,3 +134,16 @@ def analyze_study(study_id: str, payload: Optional[AnalyzePayload] = None):
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Inference failed: {str(e)}")
+
+
+@router.get("/{study_id}/jobs/{job_id}")
+def get_job(study_id: str, job_id: str):
+    """Poll a background inference job. When done, result holds InferenceResult."""
+    from app.services.model.jobs import get
+
+    job = get(job_id)
+    if not job or job["study_id"] != study_id:
+        raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found")
+    if job["status"] == "failed":
+        raise HTTPException(status_code=500, detail=f"Inference failed: {job['error']}")
+    return job
