@@ -55,7 +55,7 @@ async def generate_report(study_id: str, body: ReportRequest):
         if is_capacity_error(e):
             raise HTTPException(
                 status_code=503,
-                detail="NIM model is overloaded right now (ResourceExhausted). Please retry shortly.",
+                detail="Models are overloaded right now. Please retry shortly.",
             )
         raise HTTPException(status_code=500, detail=f"Report generation failed: {e}")
 
@@ -65,11 +65,10 @@ async def generate_report(study_id: str, body: ReportRequest):
         questions = first.get("ask") or ["patient_age", "patient_sex"]
         return {"status": "paused_for_demographics", "study_id": study_id, "questions": questions}
 
-    snapshot = graph.get_state(config)
-    messages = (snapshot.values or {}).get("messages", [])
-    report = last_ai_text(messages)
+    report, messages, model_used = await _ensure_report_text(
+        build_report_graph, config, graph, model_used)
     if not report:
-        raise HTTPException(status_code=500, detail="Agent finished without producing a report.")
+        raise HTTPException(status_code=500, detail=_empty_report_detail(messages))
 
     save_report(study_id, body.session_id, report)
     warnings: list[str] = []
@@ -143,6 +142,38 @@ async def _with_heartbeat(agen, interval: float = 15.0):
 
 def _sse(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+
+
+async def _ensure_report_text(build_fn, config, graph, model_used):
+    """Return (report, messages, model_used), retrying once on empty output.
+
+    Free-tier models occasionally return empty content; the retry re-invokes
+    the same thread with a write-now nudge instead of failing outright.
+    """
+    from app.services.agent.failover import ainvoke_with_failover
+    from app.services.agent.prompts import WRITE_NOW_NUDGE
+    from app.services.agent.trace import last_ai_text
+
+    snapshot = graph.get_state(config)
+    messages = (snapshot.values or {}).get("messages", [])
+    report = last_ai_text(messages)
+    if report:
+        return report, messages, model_used
+    try:
+        _, model_used, graph = await ainvoke_with_failover(
+            build_fn, {"messages": [HumanMessage(content=WRITE_NOW_NUDGE)]}, config)
+    except Exception:
+        pass
+    snapshot = graph.get_state(config)
+    messages = (snapshot.values or {}).get("messages", [])
+    return last_ai_text(messages), messages, model_used
+
+
+def _empty_report_detail(messages) -> str:
+    n_calls = sum(len(getattr(m, "tool_calls", None) or []) for m in messages)
+    return (f"Agent finished without producing a report ({len(messages)} messages, "
+            f"{n_calls} tool calls). Please retry — free-tier models occasionally "
+            "return empty responses.")
 
 
 async def _report_events(study_id: str, session_id: str, resume_payload):
@@ -222,11 +253,10 @@ async def _report_events(study_id: str, session_id: str, resume_payload):
         yield _sse("paused", {"questions": first.get("ask") or ["patient_age", "patient_sex"]})
         return
 
-    snapshot = graph.get_state(config)
-    messages = (snapshot.values or {}).get("messages", [])
-    report = last_ai_text(messages)
+    report, messages, model_used = await _ensure_report_text(
+        build_report_graph, config, graph, model_used)
     if not report:
-        yield _sse("error", {"detail": "Agent finished without producing a report."})
+        yield _sse("error", {"detail": _empty_report_detail(messages)})
         return
 
     save_report(study_id, session_id, report)

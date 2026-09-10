@@ -58,6 +58,13 @@ Rules:
   be consulted. Keep answers concise."""
 
 
+WRITE_NOW_NUDGE = (
+    "Write the final KNEE MRI REPORT now, using only the tool results "
+    "already in this conversation. Do not call any more tools. Use exactly "
+    "these sections: ## Study Info, ## Findings, ## Impression, ## Evidence."
+)
+
+
 REPORT_SECTIONS = ["study info", "findings", "impression", "evidence"]
 
 

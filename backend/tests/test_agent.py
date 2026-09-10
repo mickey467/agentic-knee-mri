@@ -240,9 +240,16 @@ def client():
 
 
 def _stub_provider(monkeypatch, script):
-    monkeypatch.setattr(
-        graph_mod, "get_chat_model", lambda: _fake(script)
-    )
+    # One shared iterator per test so multi-invoke flows (e.g. empty-report
+    # retry) progress through the script instead of restarting it.
+    shared = iter(list(script))
+
+    def _build():
+        model = ScriptedChatModel([])
+        object.__setattr__(model, "_it", shared)
+        return model
+
+    monkeypatch.setattr(graph_mod, "get_chat_model", _build)
 
 
 def _study_missing_demographics():
@@ -299,6 +306,21 @@ def test_report_resume_produces_report(client, monkeypatch):
 
     got = client.get(f"/api/studies/{sid}/report", params={"session_id": "t2"})
     assert got.status_code == 200 and got.json()["report"] == body["report"]
+
+
+def test_report_resume_recovers_from_empty_response(client, monkeypatch):
+    sid = _study_missing_demographics()
+    _stub_provider(monkeypatch, [AIMessage(content=""), AIMessage(content=REPORT_MD)])
+    paused = client.post(f"/api/studies/{sid}/report", json={"session_id": "s4"})
+    assert paused.json()["status"] == "paused_for_demographics"
+    resp = client.post(
+        f"/api/studies/{sid}/report",
+        json={"session_id": "s4", "resume_payload": {"patient_age": "45", "patient_sex": "M"}},
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["status"] == "ok"
+    assert "## Evidence" in body["report"]
 
 
 def test_report_503_without_key(client, monkeypatch):
