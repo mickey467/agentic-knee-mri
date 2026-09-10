@@ -33,9 +33,16 @@ def get_predictions(study_id: str) -> str:
 
 
 @lc_tool
-def find_series(study_id: str, orientation: str) -> str:
-    """Find series in a knee MRI study by orientation (Sagittal, Coronal, Axial)."""
-    return _find_series(study_id, orientation)
+def find_series(
+    study_id: str,
+    orientation: str,
+    slice_number: int | None = None,
+) -> str:
+    """Find series in a knee MRI study by orientation (Sagittal, Coronal, Axial).
+
+    Pass slice_number through whenever the user names a specific slice.
+    """
+    return _find_series(study_id, orientation, slice_number)
 
 
 @lc_tool

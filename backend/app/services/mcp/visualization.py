@@ -9,8 +9,12 @@ from app.services.dicom.service import study_manager
 logger = logging.getLogger(__name__)
 
 
-def find_series_text(study_id: str, orientation: str) -> str:
-    """Find series in a study matching an anatomical orientation."""
+def find_series_text(study_id: str, orientation: str, slice_number=None) -> str:
+    """Find series in a study matching an anatomical orientation.
+
+    slice_number is passed straight through for the viewer (parsed back out
+    downstream); the tool itself matches on orientation only.
+    """
     study = study_manager.get_study(study_id)
     if not study:
         return f"Study '{study_id}' not found"
@@ -22,7 +26,10 @@ def find_series_text(study_id: str, orientation: str) -> str:
     ]
     if not matching:
         return f"No series found with orientation '{orientation}' in study '{study_id}'."
-    return f"Series with '{orientation}' orientation in study '{study_id}':\n" + "\n".join(matching)
+    text = f"Series with '{orientation}' orientation in study '{study_id}':\n" + "\n".join(matching)
+    if slice_number is not None:
+        text += f"\nRequested slice: {slice_number}"
+    return text
 
 
 def create_vis_mcp_server() -> MCPServer:
@@ -35,8 +42,11 @@ def create_vis_mcp_server() -> MCPServer:
     )
 
     @server.tool()
-    def find_series(study_id: str, orientation: str) -> str:
-        """Find series in a knee MRI study by orientation (Sagittal, Coronal, Axial)."""
-        return find_series_text(study_id, orientation)
+    def find_series(study_id: str, orientation: str, slice_number: int | None = None) -> str:
+        """Find series in a knee MRI study by orientation (Sagittal, Coronal, Axial).
+
+        Pass slice_number through whenever the user names a specific slice.
+        """
+        return find_series_text(study_id, orientation, slice_number)
 
     return server

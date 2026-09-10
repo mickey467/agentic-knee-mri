@@ -55,9 +55,11 @@ export default function Workspace({ study, session, onBack }) {
           ? series.find((s) => s.orientation.toLowerCase() === cmd.orientation.toLowerCase())
           : null);
       if (match) {
+        const want = cmd.slice_number ?? Math.ceil(match.slice_count / 2);
+        const clamped = Math.min(Math.max(1, want), match.slice_count);
         setSeriesId(match.series_id);
-        setSlice(Math.max(1, Math.ceil(match.slice_count / 2)));
-        setVizNote(`Viewer → ${label(match)} (slice ${Math.max(1, Math.ceil(match.slice_count / 2))}/${match.slice_count})`);
+        setSlice(clamped);
+        setVizNote(`Viewer → ${label(match)} (slice ${clamped}/${match.slice_count})`);
       } else {
         setVizNote("No matching series found for that view.");
       }

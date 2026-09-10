@@ -158,7 +158,8 @@ def test_trace_and_viz_helpers():
     commands = extract_viz_commands(messages)
     assert commands == [
         {"tool": "find_series", "orientation": "Sagittal",
-         "series_number": 3, "series_description": "Sag T2 FS"}
+         "series_number": 3, "series_description": "Sag T2 FS",
+         "slice_number": None}
     ]
     assert last_ai_text(messages) == "Here is the sagittal view."
     assert extract_viz_commands([AIMessage(content="no tools here")]) == []

@@ -4,6 +4,7 @@ import re
 
 _FIND_HEADER = re.compile(r"Series with '(\w+)' orientation")
 _FIND_LINE = re.compile(r"Series (\d+): (.+)")
+_FIND_SLICE = re.compile(r"Requested slice: (\d+)")
 
 
 def summarize_trace(messages, max_len: int = 500) -> list[dict]:
@@ -28,10 +29,13 @@ def extract_viz_commands(messages) -> list[dict]:
         text = str(m.content)
         header = _FIND_HEADER.search(text)
         orientation = header.group(1) if header else ""
+        requested = _FIND_SLICE.search(text)
+        slice_number = int(requested.group(1)) if requested else None
         for num, desc in _FIND_LINE.findall(text):
             commands.append(
                 {"tool": "find_series", "orientation": orientation,
-                 "series_number": int(num), "series_description": desc.strip()}
+                 "series_number": int(num), "series_description": desc.strip(),
+                 "slice_number": slice_number}
             )
     return commands
 

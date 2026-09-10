@@ -48,6 +48,19 @@ def test_vis_tool_executes():
     assert "not found" in find_series_text("does_not_exist", "Sagittal").lower()
 
 
+def test_vis_slice_passthrough():
+    from app.services.agent.trace import extract_viz_commands
+    from langchain_core.messages import ToolMessage
+
+    text = find_series_text("acl", "Sagittal", slice_number=5)
+    assert "Requested slice: 5" in text
+    assert "Requested slice" not in find_series_text("acl", "Sagittal")
+    msg = ToolMessage(content=text, name="find_series", tool_call_id="c9")
+    commands = extract_viz_commands([msg])
+    assert commands and all(c["slice_number"] == 5 for c in commands)
+    assert commands[0]["orientation"] == "Sagittal"
+
+
 def test_rag_mock_fallback(monkeypatch, tmp_path):
     """With no ingested store, the RAG tool falls back to the mock KB."""
     from app.services.rag import retriever
