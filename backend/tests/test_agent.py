@@ -324,6 +324,26 @@ def test_report_resume_recovers_from_empty_response(client, monkeypatch):
     assert "## Evidence" in body["report"]
 
 
+def test_report_resume_unknown_falls_back_to_dicom(client, monkeypatch):
+    sid = _study_missing_demographics()
+    _stub_provider(monkeypatch, [AIMessage(content=REPORT_MD)])
+    client.post(f"/api/studies/{sid}/report", json={"session_id": "s5"})
+    resp = client.post(
+        f"/api/studies/{sid}/report",
+        json={"session_id": "s5", "resume_payload": {"patient_age": "unknown", "patient_sex": "unknown"}},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["status"] == "ok"
+    # "unknown" must never leak literally into the thread state
+    from app.services.agent.graph import build_report_graph
+    from app.services.agent.store import thread_id
+
+    probe = build_report_graph(model=_fake([AIMessage(content="unused")]))
+    snap = probe.get_state({"configurable": {"thread_id": thread_id(sid, "s5")}})
+    assert snap.values.get("patient_age") != "unknown"
+    assert snap.values.get("patient_sex") != "unknown"
+
+
 def test_report_503_without_key(client, monkeypatch):
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     resp = client.post("/api/studies/acl/report", json={"session_id": "t3"})

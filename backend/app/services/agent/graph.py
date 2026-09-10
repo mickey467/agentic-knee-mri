@@ -55,8 +55,8 @@ def demographics_gate(state: AgentState) -> dict:
 
     def _pick(key: str, fallback: str) -> str:
         v = _clean(answers.get(key))
-        if (not v or v.lower() in {"unknown", "n/a", "none", "not provided"}) and not fallback:
-            return "Not provided"
+        if not v or v.lower() in {"unknown", "n/a", "none", "not provided"}:
+            v = ""
         return v or fallback or "Not provided"
 
     final_age = _pick("patient_age", age)
