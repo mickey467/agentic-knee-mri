@@ -30,7 +30,11 @@ DICOM studies → DINOv2 + LoRA ensemble → 12 abnormality scores
 4. **Chat** — ask follow-ups (RAG answers) or drive the viewer
    ("show me the sagittal series" jumps the viewer there via `viz_commands`).
 
+![Agentic reporting loop](demo/07-agent-diagram.png)
+
 ## Model G: DINOv2 + LoRA abnormality predictor
+
+![Model-G architecture](demo/06-model-diagram.jpg)
 
 Shared input pipeline for all experiments — DINOv2 inference runs once and
 embeddings are reused:
