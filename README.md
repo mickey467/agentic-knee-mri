@@ -16,6 +16,9 @@ DICOM studies → DINOv2 + LoRA ensemble → 12 abnormality scores
 
 > **Live demo:** coming via GitHub Codespaces (see Deployment).
 
+![Landing page with study cards](demo/01-landing.png)
+![Workspace with viewer, probabilities, and AI report](demo/03-report.png)
+
 ## How it works
 
 1. **Pick a study** — 3 pre-loaded de-identified knee MRI studies (ACL, effusion, medial OA).
